@@ -1,0 +1,31 @@
+services:
+  auth-db:
+    container_name: auth_db
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=jrdev
+      - POSTGRES_DB=pepi
+      - POSTGRES_PASSWORD=mypass123456
+
+  auth:
+    container_name: auth
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - auth-db
+    ports:
+      - "5100:5100"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+
+      AppConfig__Port: 5100
+      AppConfig__Service: Auth
+      AppConfig__Status: Running
+    networks:
+      - local-network
+
+networks:
+  local-network:
+    name: local-network
+    external: true
