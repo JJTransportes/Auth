@@ -2,14 +2,14 @@ using Auth.Config;
 
 var builder = WebApplication.CreateBuilder(args);
 
-IConfigurationSection apiSection = builder.Configuration.GetSection(ApiConfig.SectionName);
-builder.Services.Configure<ApiConfig>(apiSection);
+IConfigurationSection appConfigSection = builder.Configuration.GetSection(AppConfig.SectionName);
+builder.Services.Configure<AppConfig>(appConfigSection);
 
-var apiConfig = apiSection.Get<ApiConfig>();
+var appConfig = appConfigSection.Get<AppConfig>();
 
-if (apiConfig is null) throw new Exception("ApiConfig not provided.");
+if (appConfig is null) throw new Exception("AppConfig not provided.");
 
-builder.WebHost.UseUrls($"http://*:{apiConfig.Port}");
+builder.WebHost.UseUrls($"http://*:{appConfig.Port}");
 
 builder.Services.AddOpenApi();
 
@@ -24,10 +24,10 @@ app.UseHttpsRedirection();
 
 app.MapGet("health", () => new
 {
-  service = apiConfig.Service,
-  status = apiConfig.Status,
-  port = apiConfig.Port,
-  time = apiConfig.Time
+  service = appConfig.Service,
+  status = appConfig.Status,
+  port = appConfig.Port,
+  time = appConfig.Time
 });
 
 await app.RunAsync();
