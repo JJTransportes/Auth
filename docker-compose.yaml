@@ -4,8 +4,12 @@ services:
     image: postgres:16
     environment:
       - POSTGRES_USER=jrdev
-      - POSTGRES_DB=pepi
+      - POSTGRES_DB=auth_db
       - POSTGRES_PASSWORD=mypass123456
+    ports:
+      - 5432:5432
+    networks:
+      - local-network
 
   auth:
     container_name: auth
