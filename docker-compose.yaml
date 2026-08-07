@@ -26,6 +26,7 @@ services:
       AppConfig__Port: 5100
       AppConfig__Service: Auth
       AppConfig__Status: Running
+      AppConfig__ConnectionString: Host=auth-db;Port=5432;Database=auth_db;Username=jrdev;Password=mypass123456
     networks:
       - local-network
 

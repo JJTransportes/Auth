@@ -1,4 +1,8 @@
 using Auth.Config;
+using Auth.Data;
+using Auth.Endpoints;
+using Auth.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +17,14 @@ builder.WebHost.UseUrls($"http://*:{appConfig.Port}");
 
 builder.Services.AddOpenApi();
 
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(appConfig.ConnectionString));
+
+builder.Services.AddScoped<IAccountRepository, AccountRepository>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -21,6 +33,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.MapAccountEndpoints();
 
 app.MapGet("health", () => new
 {
