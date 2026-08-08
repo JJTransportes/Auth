@@ -27,6 +27,12 @@ public class AccountRepository : IAccountRepository
 
     public async Task<string> SendVerificationCodeAsync(string email, CancellationToken cancellationToken = default)
     {
+        var emailExists = await _db.Accounts
+            .AnyAsync(a => a.Email == email, cancellationToken);
+
+        if (emailExists)
+            throw new InvalidOperationException("E-mail já cadastrado");
+
         var code = new Random().Next(100000, 999999).ToString();
 
         var verification = new EmailVerification

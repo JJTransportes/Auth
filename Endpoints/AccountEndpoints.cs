@@ -14,9 +14,15 @@ public static class AccountEndpoints
             IAccountRepository repository,
             CancellationToken ct) =>
         {
-            var code = await repository.SendVerificationCodeAsync(dto.Email, ct);
-
-            return Results.Ok(new { message = "Verification code sent.", code });
+            try
+            {
+                var code = await repository.SendVerificationCodeAsync(dto.Email, ct);
+                return Results.Ok(new { message = "Verification code sent.", code });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { ex.Message });
+            }
         });
 
         group.MapGet("/{userType}/{userId:guid}", async (
