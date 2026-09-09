@@ -1,4 +1,7 @@
 using Auth.Dtos;
+using Auth.Enums;
+using Auth.Errors;
+using Auth.Interfaces;
 using Auth.Repositories;
 
 namespace Auth.Endpoints;
@@ -9,20 +12,16 @@ public static class AccountEndpoints
     {
         var group = app.MapGroup("/accounts");
 
-        group.MapPost("/send-verification", async (
+        group.MapPost("/verify-email", async (
             SendVerificationDto dto,
-            IAccountRepository repository,
+            IEmailVerificationRepository repository,
             CancellationToken ct) =>
         {
-            try
-            {
-                var code = await repository.SendVerificationCodeAsync(dto.Email, ct);
-                return Results.Ok(new { message = "Verification code sent.", code });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Results.BadRequest(new { ex.Message });
-            }
+            var (emailVerification, error) = await repository.SendVerificationCodeAsync(dto.Email, ct);
+
+            return emailVerification != null ?
+                _BuildVerificationCodeSentResponse(emailVerification) :
+                _BuildVerificationCodeSendingFailureResponse(error!);
         });
 
         group.MapGet("/{userType}/{userId:guid}", async (
@@ -75,5 +74,64 @@ public static class AccountEndpoints
             var deleted = await repository.DeleteAsync(userId, userType, ct);
             return deleted ? Results.NoContent() : Results.NotFound();
         });
+    }
+
+    private static IResult _BuildVerificationCodeSentResponse(VerificationDto emailVerification)
+    {
+        return Results.Ok(new ResponseDto<VerificationDto?>()
+        {
+            Data = emailVerification,
+            Message = $"Código de verificação enviado para {emailVerification.Email}.",
+        });
+    }
+
+    private static IResult _BuildVerificationCodeSendingFailureResponse(AuthBaseError error)
+    {
+        var result = error.ErrorType switch
+        {
+            ErrorType.ValidationError => Results.BadRequest(new ResponseDto<string?>()
+            {
+                Data = error.ErrorType.ToString(),
+                Message = error?.Message ?? "",
+                Errors = error?.Errors ?? []
+            }),
+            ErrorType.VerifiedEmail => Results.Conflict(new ResponseDto<string?>()
+            {
+                Data = error.ErrorType.ToString(),
+                Message = error?.Message ?? "",
+                Errors = error?.Errors ?? []
+            }),
+            ErrorType.VerificationExpired => Results.UnprocessableEntity(new ResponseDto<string?>()
+            {
+                Data = error.ErrorType.ToString(),
+                Message = error?.Message ?? "",
+                Errors = error?.Errors ?? []
+            }),
+            ErrorType.VerificationCodeSent => Results.UnprocessableEntity(new ResponseDto<string?>()
+            {
+                Data = error.ErrorType.ToString(),
+                Message = error?.Message ?? "",
+                Errors = error?.Errors ?? []
+            }),
+            _ => Results.InternalServerError(new ResponseDto<string?>()
+            {
+                Data = null,
+                Message = error?.Message ?? "",
+                Errors = error?.Errors ?? []
+            }),
+            ErrorType.VerificationExpired => Results.UnprocessableEntity(new ResponseDto<string?>()
+            {
+                Data = null,
+                Message = error?.Message ?? "",
+                Errors = error?.Errors ?? []
+            }),
+            _ => Results.InternalServerError(new ResponseDto<string?>()
+            {
+                Data = null,
+                Message = "Erro desconhecido ao verificar e-mail.",
+            })
+        };
+
+        return result;
     }
 }

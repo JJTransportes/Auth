@@ -1,7 +1,10 @@
+using System.Reflection;
 using Auth.Config;
 using Auth.Data;
 using Auth.Endpoints;
+using Auth.Interfaces;
 using Auth.Repositories;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,13 +26,15 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(appConfig.ConnectionString));
 
+builder.Services.AddScoped<IEmailVerificationRepository, EmailVerificationRepository>();
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
+builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly(), includeInternalTypes: true);
 
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-  app.MapOpenApi();
+    app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
@@ -38,10 +43,10 @@ app.MapAccountEndpoints();
 
 app.MapGet("health", () => new
 {
-  service = appConfig.Service,
-  status = appConfig.Status,
-  port = appConfig.Port,
-  time = appConfig.Time
+    service = appConfig.Service,
+    status = appConfig.Status,
+    port = appConfig.Port,
+    time = appConfig.Time
 });
 
 await app.RunAsync();
