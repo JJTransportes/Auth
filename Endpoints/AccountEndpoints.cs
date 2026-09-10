@@ -24,6 +24,19 @@ public static class AccountEndpoints
                 _BuildVerificationCodeSendingFailureResponse(error!);
         });
 
+        group.MapPost("/resend-verification", async (
+            SendVerificationDto dto,
+            IEmailVerificationRepository repository,
+            CancellationToken ct) =>
+        {
+            var (emailVerification, error) = await repository.ResendVerificationCodeAsync(dto.Email, ct);
+
+            return emailVerification != null ?
+                _BuildVerificationCodeResentResponse(emailVerification) :
+                _BuildVerificationCodeResendingFailureResponse(error!);
+        });
+
+
         group.MapGet("/{userType}/{userId:guid}", async (
             Guid userId,
             Enums.UserType userType,

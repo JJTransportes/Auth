@@ -9,4 +9,9 @@ public interface IEmailVerificationRepository
         string email,
         CancellationToken cancellationToken = default
         );
+
+    Task<Tuple<VerificationDto?, AuthBaseError?>> ResendVerificationCodeAsync(
+        string email,
+        CancellationToken cancellationToken = default
+        );
 }

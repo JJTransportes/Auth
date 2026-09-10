@@ -94,4 +94,76 @@ public class EmailVerificationRepository(
 
         return result;
     }
+
+    public async Task<Tuple<VerificationDto?, AuthBaseError?>> ResendVerificationCodeAsync(
+        string email,
+        CancellationToken cancellationToken = default
+        )
+    {
+        var validationResult = await emailValidator.ValidateAsync(new SendVerificationDto(email));
+        if (!validationResult.IsValid)
+        {
+            var validationErros = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+
+            return Tuple.Create<VerificationDto?, AuthBaseError?>(
+                null,
+                new EmailVerificationError(
+                    "Ops... Houve uma falha durante a veriicação do e-mail.",
+                    validationErros,
+                    ErrorType.ValidationError
+                    )
+                );
+        }
+
+        var emailVerification = await db.EmailVerifications
+            .FirstOrDefaultAsync(emailVerification =>
+                emailVerification.Email == email,
+                cancellationToken
+             );
+
+        if (emailValidator == null)
+        {
+            return Tuple.Create<VerificationDto?, AuthBaseError?>(
+               null,
+               new EmailVerificationError(
+                   "Ops... O e-mail informado não foi identificado.",
+                   [],
+                   ErrorType.VerificationEmailNotFound
+                   )
+               );
+        }
+
+        if (emailVerification!.Used)
+        {
+            return Tuple.Create<VerificationDto?, AuthBaseError?>(
+                null,
+                new EmailVerificationError(
+                    "Ops... O e-mail informado já foi verificado.",
+                    [],
+                    ErrorType.VerifiedEmail
+                    )
+                );
+        }
+
+        db.EmailVerifications.Remove(emailVerification);
+
+        var code = new Random().Next(100000, 999999).ToString();
+
+        var verification = new EmailVerification
+        {
+            Id = Guid.NewGuid(),
+            Email = email,
+            Code = code,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(15),
+            Used = false
+        };
+
+        db.EmailVerifications.Add(verification);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var result = Tuple.Create<VerificationDto?, AuthBaseError?>(verification.MapToDto(), null);
+
+        return result;
+    }
 }
