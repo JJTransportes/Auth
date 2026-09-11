@@ -36,10 +36,21 @@ public static class AccountEndpoints
                 _BuildVerificationCodeResendingFailureResponse(error!);
         });
 
+        group.MapPost("/", async (
+            NewAccountDto dto,
+            IAccountRepository repository,
+            CancellationToken cancellationToken) =>
+        {
+
+            var (newAccount, error) = await repository.CreateAsync(dto, cancellationToken);
+            return newAccount != null ?
+                _BuildAccountCreationResponse(newAccount) :
+                _BuildAccountCreationFailureResponse(error!);
+        });
 
         group.MapGet("/{userType}/{userId:guid}", async (
+            UserType userType,
             Guid userId,
-            Enums.UserType userType,
             IAccountRepository repository,
             CancellationToken ct) =>
         {
@@ -47,45 +58,41 @@ public static class AccountEndpoints
             return account is null ? Results.NotFound() : Results.Ok(account);
         });
 
-        group.MapPost("/", async (NewAccountDto dto, IAccountRepository repository, CancellationToken ct) =>
-        {
-            try
-            {
-                var created = await repository.CreateAsync(dto, ct);
-                return Results.Created($"/accounts/{created.UserType}/{created.UserId}", created);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Results.BadRequest(new { ex.Message });
-            }
-        });
-
         group.MapPut("/{userType}/{userId:guid}", async (
             Guid userId,
-            Enums.UserType userType,
+            UserType userType,
             UpdateAccountDto dto,
             IAccountRepository repository,
             CancellationToken ct) =>
         {
-            try
+            var (updated, error) = await repository.UpdateAsync(userId, userType, dto, ct);
+            return updated is not null ?
+            Results.Ok(new ResponseDto<AccountDto>
             {
-                var updated = await repository.UpdateAsync(userId, userType, dto, ct);
-                return Results.Ok(updated);
-            }
-            catch (InvalidOperationException)
+                Data = updated,
+                Message = "Conta atualizada com sucesso!"
+            }) :
+            Results.NotFound(new ResponseDto<AccountDto?>
             {
-                return Results.NotFound();
-            }
+                Data = null,
+                Message = "Ops... Houve um erro na atualização da conta. Verifique os dados e tente novamente."
+            });
         });
 
         group.MapDelete("/{userType}/{userId:guid}", async (
             Guid userId,
-            Enums.UserType userType,
+            UserType userType,
             IAccountRepository repository,
             CancellationToken ct) =>
         {
-            var deleted = await repository.DeleteAsync(userId, userType, ct);
-            return deleted ? Results.NoContent() : Results.NotFound();
+            var (deleted, _) = await repository.DeleteAsync(userId, userType, ct);
+            return deleted ? Results.NoContent() :
+            Results.NotFound(
+            new ResponseDto<AccountDto?>
+            {
+                Data = null,
+                Message = "Ops... Houve um erro ao deletar sua conta. Verifique os dados e tente novamente."
+            });
         });
     }
 
@@ -102,39 +109,123 @@ public static class AccountEndpoints
     {
         var result = error.ErrorType switch
         {
-            ErrorType.ValidationError => Results.BadRequest(new ResponseDto<string?>()
+            ErrorType.ValidationError => Results.BadRequest(new ResponseDto<ErrorType>()
             {
-                Data = error.ErrorType.ToString(),
+                Data = error.ErrorType,
                 Message = error?.Message ?? "",
                 Errors = error?.Errors ?? []
             }),
-            ErrorType.VerifiedEmail => Results.Conflict(new ResponseDto<string?>()
+            ErrorType.VerifiedEmail => Results.Conflict(new ResponseDto<ErrorType>()
             {
-                Data = error.ErrorType.ToString(),
+                Data = error.ErrorType,
                 Message = error?.Message ?? "",
                 Errors = error?.Errors ?? []
             }),
-            ErrorType.VerificationExpired => Results.UnprocessableEntity(new ResponseDto<string?>()
+            ErrorType.VerificationExpired => Results.UnprocessableEntity(new ResponseDto<ErrorType>()
             {
-                Data = error.ErrorType.ToString(),
+                Data = error.ErrorType,
                 Message = error?.Message ?? "",
                 Errors = error?.Errors ?? []
             }),
-            ErrorType.VerificationCodeSent => Results.UnprocessableEntity(new ResponseDto<string?>()
+            ErrorType.VerificationCodeSent => Results.Conflict(new ResponseDto<ErrorType>()
             {
-                Data = error.ErrorType.ToString(),
+                Data = error.ErrorType,
                 Message = error?.Message ?? "",
                 Errors = error?.Errors ?? []
             }),
             _ => Results.InternalServerError(new ResponseDto<string?>()
             {
                 Data = null,
+                Message = "Erro desconhecido ao verificar e-mail.",
+            })
+        };
+
+        return result;
+    }
+
+    private static IResult _BuildVerificationCodeResentResponse(VerificationDto emailVerification)
+    {
+        return Results.Ok(new ResponseDto<VerificationDto?>()
+        {
+            Data = emailVerification,
+            Message = $"Código de verificação enviado para {emailVerification.Email}.",
+        });
+    }
+
+    private static IResult _BuildVerificationCodeResendingFailureResponse(AuthBaseError error)
+    {
+        var result = error.ErrorType switch
+        {
+            ErrorType.ValidationError => Results.BadRequest(new ResponseDto<ErrorType>()
+            {
+                Data = error.ErrorType,
                 Message = error?.Message ?? "",
                 Errors = error?.Errors ?? []
             }),
-            ErrorType.VerificationExpired => Results.UnprocessableEntity(new ResponseDto<string?>()
+            ErrorType.VerificationEmailNotFound => Results.NotFound(new ResponseDto<ErrorType>()
+            {
+                Data = error.ErrorType,
+                Message = error?.Message ?? "",
+                Errors = error?.Errors ?? []
+            }),
+            ErrorType.VerifiedEmail => Results.Conflict(new ResponseDto<ErrorType>()
+            {
+                Data = error.ErrorType,
+                Message = error?.Message ?? "",
+                Errors = error?.Errors ?? []
+            }),
+            _ => Results.InternalServerError(new ResponseDto<string?>()
             {
                 Data = null,
+                Message = "Erro desconhecido ao reenviar verificação de e-mail.",
+            })
+        };
+
+        return result;
+    }
+
+    private static IResult _BuildAccountCreationResponse(AccountDto newAccount)
+    {
+        return Results.Created(
+            $"/accounts/{newAccount.UserType}/{newAccount.UserId}",
+            new ResponseDto<AccountDto>
+            {
+                Data = newAccount,
+                Message = "Parabéns! Sua conta foi criada com sucesso!"
+            });
+    }
+
+    public static IResult _BuildAccountCreationFailureResponse(AuthBaseError error)
+    {
+        var result = error.ErrorType switch
+        {
+            ErrorType.InvalidAccountData => Results.BadRequest(new ResponseDto<ErrorType>()
+            {
+                Data = error.ErrorType,
+                Message = error?.Message ?? "",
+                Errors = error?.Errors ?? []
+            }),
+            ErrorType.AccountEmailNotFound => Results.NotFound(new ResponseDto<ErrorType>()
+            {
+                Data = error.ErrorType,
+                Message = error?.Message ?? "",
+                Errors = error?.Errors ?? []
+            }),
+            ErrorType.InvalidVerificationCode => Results.UnprocessableEntity(new ResponseDto<ErrorType>()
+            {
+                Data = error.ErrorType,
+                Message = error?.Message ?? "",
+                Errors = error?.Errors ?? []
+            }),
+            ErrorType.VerificationExpired => Results.UnprocessableEntity(new ResponseDto<ErrorType>()
+            {
+                Data = error.ErrorType,
+                Message = error?.Message ?? "",
+                Errors = error?.Errors ?? []
+            }),
+            ErrorType.EmailAlreadyRegistered => Results.Conflict(new ResponseDto<ErrorType>()
+            {
+                Data = error.ErrorType,
                 Message = error?.Message ?? "",
                 Errors = error?.Errors ?? []
             }),

@@ -6,6 +6,5 @@ public record AccountDto(
     Guid Id,
     Guid UserId,
     UserType UserType,
-    string Email,
-    string VerificationCode
+    string Email
 );

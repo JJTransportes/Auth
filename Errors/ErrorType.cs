@@ -8,4 +8,11 @@ public enum ErrorType
     VerificationCodeSent,
     VerifiedEmail,
     VerificationExpired,
+
+    // ACCOUNT CREATION ERRORS
+    InvalidAccountData,
+    AccountEmailNotFound,
+    InvalidVerificationCode,
+    EmailAlreadyRegistered,
+    AccountNotFound
 }

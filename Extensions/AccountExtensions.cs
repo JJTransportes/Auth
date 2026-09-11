@@ -11,8 +11,7 @@ public static class AccountExtensions
             account.Id,
             account.UserId,
             account.UserType,
-            account.Email,
-            account.VerificationCode
+            account.Email
         );
     }
 }
