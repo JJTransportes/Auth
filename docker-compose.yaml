@@ -8,6 +8,8 @@ services:
       - POSTGRES_PASSWORD=mypass123456
     ports:
       - 5432:5432
+    volumes:
+      - auth_db_volume:/var/lib/postgresql/data
     networks:
       - local-network
 
@@ -30,6 +32,9 @@ services:
     networks:
       - local-network
 
+volumes:
+  auth_db_volume:
+    
 networks:
   local-network:
     name: local-network
