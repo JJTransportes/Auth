@@ -5,6 +5,7 @@ using Auth.Endpoints;
 using Auth.Interfaces;
 using Auth.Repositories;
 using FluentValidation;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,6 +30,26 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IEmailVerificationRepository, EmailVerificationRepository>();
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
 builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly(), includeInternalTypes: true);
+
+builder.Services.AddMassTransit(bus =>
+    {
+        var currentAssembly = Assembly.GetExecutingAssembly();
+
+        bus.SetKebabCaseEndpointNameFormatter();
+
+        bus.AddConsumers(currentAssembly);
+
+        bus.UsingRabbitMq((context, configurator) =>
+        {
+            configurator.Host(new Uri(appConfig.MessageHost), x =>
+            {
+                x.Username(appConfig.MessageUser);
+                x.Password(appConfig.MessagePassword);
+            });
+
+            configurator.ConfigureEndpoints(context);
+        });
+    });
 
 var app = builder.Build();
 

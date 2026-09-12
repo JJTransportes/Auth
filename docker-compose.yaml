@@ -29,6 +29,9 @@ services:
       AppConfig__Service: Auth
       AppConfig__Status: Running
       AppConfig__ConnectionString: Host=auth-db;Port=5432;Database=auth_db;Username=jrdev;Password=mypass123456
+      AppConfig__MessageHost: amqp://message-service:5672
+      AppConfig__MessageUser: guest
+      AppConfig__MessagePassword: guest
     networks:
       - local-network
 
