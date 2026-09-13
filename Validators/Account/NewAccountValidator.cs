@@ -8,7 +8,7 @@ internal sealed class NewAccountValidator : AbstractValidator<NewAccountDto>
     public NewAccountValidator()
     {
         RuleFor(x => x.UserType)
-            .NotNull().WithMessage("O tipo de usuário deve ser informado.");
+            .IsInEnum().WithMessage("Tipo de usuário selecionado inválido.");
         RuleFor(x => x.Password)
             .MinimumLength(8).WithMessage("A senha precisa ter pelo menos 8 dígitos.");
         RuleFor(x => x.Email)
