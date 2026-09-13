@@ -16,8 +16,8 @@ services:
   auth:
     container_name: auth
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: Auth/Dockerfile
     depends_on:
       - auth-db
     ports:

@@ -54,8 +54,11 @@ public static class AccountEndpoints
             IAccountRepository repository,
             CancellationToken ct) =>
         {
-            var account = await repository.GetByUserAsync(userId, userType, ct);
-            return account is null ? Results.NotFound() : Results.Ok(account);
+            var (account, error) = await repository.GetByUserAsync(userId, userType, ct);
+            return account is null ? Results.NotFound() : Results.Ok(new ResponseDto<AccountDto>
+            {
+                Data = account,
+            });
         });
 
         group.MapPut("/{userType}/{userId:guid}", async (

@@ -6,14 +6,17 @@ using Auth.Errors.Account;
 using Auth.Extensions;
 using Auth.Interfaces;
 using Auth.Models;
+using Contracts.Events;
 using FluentValidation;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
 namespace Auth.Repositories;
 
 public class AccountRepository(
     AppDbContext db,
-    IValidator<NewAccountDto> newAccountValidator) : IAccountRepository
+    IValidator<NewAccountDto> newAccountValidator,
+    IPublishEndpoint publisher) : IAccountRepository
 {
     public async Task<Tuple<AccountDto?, AuthBaseError?>> CreateAsync(NewAccountDto dto, CancellationToken cancellationToken = default)
     {
@@ -103,6 +106,8 @@ public class AccountRepository(
         db.Accounts.Add(newAccount);
         await db.SaveChangesAsync(cancellationToken);
 
+        await _HandleNewAccountCreation(newAccount);
+
         return Tuple.Create<AccountDto?, AuthBaseError?>(newAccount.MapToDto(), null);
     }
 
@@ -170,5 +175,22 @@ public class AccountRepository(
         await db.SaveChangesAsync(cancellationToken);
 
         return Tuple.Create<bool, AuthBaseError?>(true, null);
+    }
+
+    private async Task _HandleNewAccountCreation(Account newAccount)
+    {
+        switch (newAccount.UserType)
+        {
+            case UserType.Admin:
+                break;
+            case UserType.Customer:
+                break;
+            case UserType.Driver:
+                await publisher.Publish(new DriverCreatedEvent
+                {
+                    DriverId = newAccount.UserId
+                });
+                break;
+        }
     }
 }
